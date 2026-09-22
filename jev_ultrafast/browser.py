@@ -7,10 +7,10 @@ import time
 from pathlib import Path
 
 from browser_harness.admin import ensure_daemon
-from browser_harness.helpers import cdp
+from browser_harness.helpers import SCREENSHOT_IPC_RESPONSE_TIMEOUT_SECONDS, cdp
 
 # Atomically read visible content and controls, preserving actual DOM node identity.
-READ_STATE = Path(__file__).with_name("snapshot.js").read_text()
+READ_STATE = Path(__file__).with_name("snapshot.js").read_text(encoding="utf-8")
 MARKER = f"(() => {{ const state={READ_STATE}; return state?.marker ?? null; }})()"
 
 class StalePage(ValueError):
@@ -108,7 +108,11 @@ class Browser:
 
     def close(self):
         if self.target:
-            cdp("Target.closeTarget", targetId=self.target)
+            try:
+                cdp("Target.closeTarget", targetId=self.target)
+            except RuntimeError as error:
+                if "No target with given id found" not in str(error):
+                    raise
             self.target = None
 
 
@@ -190,5 +194,10 @@ def browser_operation(request):
         raise StalePage("Document is navigating")
     info["fingerprint"] = fingerprint(info)
     if request.get("screenshot", True):
-        info["screenshot"] = call("Page.captureScreenshot", format="jpeg", quality=72)["data"]
+        info["screenshot"] = call(
+            "Page.captureScreenshot",
+            format="jpeg",
+            quality=72,
+            _response_timeout=SCREENSHOT_IPC_RESPONSE_TIMEOUT_SECONDS,
+        )["data"]
     return info

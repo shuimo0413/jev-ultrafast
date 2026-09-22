@@ -8,3 +8,7 @@ artifacts/
 *.egg-info/
 
 dist/
+
+pr日志/
+密钥文件.md
+.idea/
